@@ -8,8 +8,8 @@ In this project, we translate the SEED labs into Spanish.
 
 ## Contributing
 
-Translations made by Me for SEED Labs's Workshops by Professor Kevin Du
-Original repo in english can be found at https://github.com/seed-labs/seed-labs
+Spanish Translations for SEED Labs's Workshops by Professor Kevin Du were made by Me,
+Original repository in english can be found at https://github.com/seed-labs/seed-labs
 
 ## License
 
