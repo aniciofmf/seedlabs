@@ -1,0 +1,129 @@
+\documentclass[11pt]{article}
+
+\usepackage[most]{tcolorbox}
+\usepackage{times}
+\usepackage{epsf}
+\usepackage{epsfig}
+\usepackage{amsmath, alltt, amssymb, xspace}
+\usepackage{wrapfig}
+\usepackage{fancyhdr}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{fancyvrb}
+\usepackage{adjustbox}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{subfigure}
+\usepackage{cite}
+\usepackage{sidecap}
+\usepackage{pifont}
+\usepackage{mdframed}
+\usepackage{textcomp}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+
+% Horizontal alignment
+\topmargin      -0.50in  % distance to headers
+\oddsidemargin  0.0in
+\evensidemargin 0.0in
+\textwidth      6.5in
+\textheight     8.9in 
+
+\newcommand{\todo}[1]{
+\vspace{0.1in}
+\fbox{\parbox{6in}{TODO: #1}}
+\vspace{0.1in}
+}
+
+
+\newcommand{\unix}{{\tt Unix}\xspace}
+\newcommand{\linux}{{\tt Linux}\xspace}
+\newcommand{\minix}{{\tt Minix}\xspace}
+\newcommand{\ubuntu}{{\tt Ubuntu}\xspace}
+\newcommand{\setuid}{{\tt Set-UID}\xspace}
+\newcommand{\openssl} {\texttt{openssl}}
+
+
+\pagestyle{fancy}
+\lhead{\bfseries SEED Labs}
+\chead{}
+\rhead{\small \thepage}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\definecolor{lightgray}{gray}{0.90}
+
+
+\lstset{%
+  frame=none,
+  language=,
+  backgroundcolor=\color{lightgray},
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+%  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3,
+  columns=fullflexible,
+  keepspaces=true,
+  escapeinside={(*@}{@*)}
+}
+
+\newcommand{\newnote}[1]{
+\vspace{0.1in}
+\noindent
+\fbox{\parbox{1.0\textwidth}{\textbf{Note:} #1}}
+%\vspace{0.1in}
+}
+
+
+%% Submission
+\newcommand{\seedsubmission}{
+Debe enviar un informe de laboratorio detallado, con capturas de pantalla, para describir lo que ha hecho y lo que ha observado.
+También debe proporcionar una explicación a las observaciones que sean interesantes o sorprendentes.
+Enumere también los fragmentos de código más importantes seguidos de una explicación. No recibirán créditos aquellos fragmentos de códigos que no sean explicados.}
+
+%% Book
+\newcommand{\seedbook}{\textit{Computer \& Internet Security: A Hands-on Approach}, 2nd
+Edition, by Wenliang Du. Para más detalles \url{https://www.handsonsecurity.net}.\xspace}
+
+%% Videos
+\newcommand{\seedisvideo}{\textit{Internet Security: A Hands-on Approach},
+by Wenliang Du. Para más detalles \url{https://www.handsonsecurity.net/video.html}.\xspace}
+
+\newcommand{\seedcsvideo}{\textit{Computer Security: A Hands-on Approach},
+by Wenliang Du. Para más detalles \url{https://www.handsonsecurity.net/video.html}.\xspace}
+
+%% Lab Environment
+\newcommand{\seedenvironment}{Este laboratorio ha sido testeado en nuestra imagen pre-compilada de una VM con Ubuntu 16.04, que puede ser descargada del sitio oficial de SEED.\xspace}
+
+\newcommand{\seedenvironmentA}{Este laboratorio ha sido testeado en nuestra imagen pre-compilada de una VM con Ubuntu 16.04, que puede ser descargada del sitio oficial de SEED.\xspace}
+
+\newcommand{\seedenvironmentB}{Este laboratorio ha sido testeado en nuestra imagen pre-compilada de una VM con Ubuntu 20.04, que puede ser descargada del sitio oficial de SEED .\xspace}
+
+\newcommand{\seedenvironmentC}{Este laboratorio ha sido testeado en nuestra imagen pre-compilada de una VM con Ubuntu 20.04, que puede ser descargada del sitio oficial de SEED. Sin embargo, la mayoría de nuestros laboratorios pueden ser realizados en la nube para esto Ud. puede leer nuestra guía que explica como crear una VM de SEED en la nube.\xspace}
+
+\newcommand{\seedenvironmentAB}{
+Este laboratorio ha sido testeado en nuestras imagenes pre-compiladas de una VM con Ubuntu 16.04 y otra con Ubuntu 20.04, que pueden ser descargadas del sitio oficial de SEED.\xspace}
+
+\newcommand{\nodependency}{Dado que utilizamos contenedores para configurar el entorno de laboratorio, este laboratorio no depende estrictamente de la VM de SEED. Puede hacer este laboratorio utilizando otras máquinas virtuales, máquinas físicas o máquinas virtuales en la nube.\xspace}
+
+\newcommand{\adddns}{You do need to add the required IP address mapping to
+the \texttt{/etc/hosts} file.\xspace}
+
+
+
+

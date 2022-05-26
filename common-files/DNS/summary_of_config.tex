@@ -1,0 +1,75 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Copyright by Wenliang Du.                                       %%
+%%  This work is licensed under the Creative Commons                %%
+%%  Attribution-NonCommercial-ShareAlike 4.0 International License. %%
+%%  To view a copy of this license, visit                           %%
+%%  http://creativecommons.org/licenses/by-nc-sa/4.0/.              %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% -------------------------------------------
+% SUBSECTION
+% ------------------------------------------- 
+\subsection{Resumen de la Configuración del DNS} 
+
+Todos los contenedores han sido configurados para este laboratorio.
+Por lo que haremos un resumen de ellos, de esta manera los estudiantes estarán al tanto de estas configuraciones. Para explicaciones más detalladas sobre las configuraciones puede consultar el manual.
+
+
+
+\paragraph{Servidor de DNS local.} 
+Como servidor de DNS local usaremos el software BIND 9.
+BIND 9 carga su configuración de un archivo llamado \path{/etc/bind/named.conf}. Este es el principal archivo de configuración y usualmente contiene varias entradas de \texttt{"include"}, por medio de este include puede cargar las configuraciones de diferentes archivos. Uno de los archivos usado por ese include es llamado \path{/etc/bind/named.conf.options}. Es en este archivo donde se establece la configuración actual.
+
+
+\begin{itemize}
+\item \textit{Simplificación.}
+Los servidores DNS hoy en día randomizan el número de puerto de origen en sus consultas DNS; esto hace que los ataques sean mucho más difíciles. Desafortunadamente, muchos servidores DNS siguen usando número de puertos de origen predecibles. Para simplificar este laboratorio, hemos fijado el número de puerto de origen a {\tt 33333} dentro del archivo de configuración.
+
+\item \textit{Desactivando DNSSEC.} 
+DNSSEC fue introducido como mecanismo de protección en contra de ataques de spoofing en los servidores DNS. Para mostrar como funciona este ataque, hemos desactivado esta protección en el archivo de configuración.
+
+\item \textit{DNS caché.}
+Durante el ataque, necesitaremos inspeccionar la caché DNS en el servidor de DNS local. Los siguientes dos comando sirven para este propósito.
+El primer comando hace un dump del contenido de la caché en el archivo \path{/var/cache/bind/dump.db}, y el segundo comando limpia la caché.
+
+\begin{lstlisting}
+# rndc dumpdb -cache    // Dump the cache to the specified file
+# rndc flush            // Flush the DNS cache
+\end{lstlisting}
+
+\item \textit{Forwardeo de la zona \texttt{attacker32.com}.}
+Una zona de forwardeo es agregada en el servidor de DNS local, por lo que si alguien quiere consultar el dominio \texttt{attacker32.com}, la consulta será forwardeada al nameserver de este dominio, que será hosteado en el contenedor del atacante. La entrada para esta zona se ubcica dentro del archivo \texttt{named.conf}.
+
+\begin{lstlisting}
+zone "attacker32.com" {
+    type forward;
+    forwarders { 
+        10.9.0.153; 
+    };
+};
+\end{lstlisting}
+\end{itemize}
+
+
+
+\paragraph{Máquina del Usuario.}
+El contenedor del usuario cuya dirección IP es {\tt 10.9.0.5} está configurada para usar la dirección IP {\tt 10.9.0.53} como su servidor DNS local.
+Esto se logra cambiando la configuración del archivo de resolución de la máquina del usuario (\texttt{/etc/resolv.conf}), se agrega el servidor \texttt{10.9.0.53}  como \texttt{nameserver} en la primera línea del archivo, de esta forma la máquina entenderá que este será el servidor DNS primario usado por defecto.
+
+
+\paragraph{Nameserver del Atacante.}
+Dentro de la máquina del atacante, se hostean dos zonas. La primera es la zona legítima del atacante \texttt{attacker32.com}, y la segunda es la zona falsa del dominio \texttt{example.com}. Las zonas son configuradas en el archivo \path{/etc/bind/named.conf}:
+
+\begin{lstlisting}
+zone "attacker32.com" {
+        type master;
+        file "/etc/bind/attacker32.com.zone";
+};
+
+zone "example.com" {
+        type master;
+        file "/etc/bind/example.com.zone";
+};
+\end{lstlisting}
+

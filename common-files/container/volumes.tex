@@ -1,0 +1,11 @@
+La edición del código es más conveniente dentro de la Máquina Virtual que dentro del contenedor, ya que podemos usar nuestro editor de texto preferido.
+Para que la Máquina Virtual y el contenedor puedan compartir archivos, hemos creado un directorio compartido entre ambos para esto hemos usado \texttt{volumes} de Docker.
+Dentro del archivo de Docker Composer, encontrará que se ha agregado esta entrada en algunos de los contenedores.
+Esta entrada indica que se montará el diretorio \texttt{./volumes} en la Máquina Host (es decir nuestra Máquina Virtual) y se podrá usar dentro del contenedor.
+Escribiremos nuestro código dentro del directorio \texttt{./volumes} (en la Máquina Virtual) y este podrá ser usado en el contenedor.
+
+\begin{lstlisting}
+volumes:
+       - ./volumes:/volumes
+\end{lstlisting}
+

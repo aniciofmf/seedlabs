@@ -1,0 +1,287 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Copyright by Wenliang Du.                                       %%
+%%  This work is licensed under the Creative Commons                %%
+%%  Attribution-NonCommercial-ShareAlike 4.0 International License. %%
+%%  To view a copy of this license, visit                           %%
+%%  http://creativecommons.org/licenses/by-nc-sa/4.0/.              %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\commonfolder}{../../common-files}
+\newcommand{\webcommon}{../Web_Common}
+
+\input{\commonfolder/header}
+\input{\commonfolder/copyright}
+
+
+\newcommand{\bash}{{\tt bash}\xspace}
+\newcommand{\Bash}{{\tt Bash}\xspace}
+
+\lhead{\bfseries SEED Labs -- Laboratorio de Shellshock}
+
+\begin{document}
+
+\begin{center}
+{\LARGE Laboratorio de Shellshock}
+\end{center}
+
+\seedlabcopyright{2006 - 2016}
+
+\section{Overview}
+
+El 24 de Septiembre del 2014, una vulnerabilidad bastante severa fue identificada en la shell Bash. Esta vulnerabilidad fue llamada Shellshock, la misma podía ser explotada en muchos sistemas tanto de forma local como de forma remota.
+En este laboratorio, los estudiantes deberán de trabajar sobre este ataque y así entender la vulnerabilidad de Shellshock. 
+El objetivo de este laboratorio es que los estudiantes puedan comprender como funciona y experimentar este tipo de ataque como así reflexionar sobre las lecciones este tipo de ataque no deja.
+La primera versión de este laboratorio fue creada el 29 Septiembre del 2014, sólamente cinco días después de que el ataque fue reportado. Este laboratorio fue asignado a los estudiantes en nuestra clase de Computer Security el 30 de Septiembre del 2014.
+Una misión importante del proyecto SEED es convertir rápidamente ataques reales en material educativo, con el objetivo de que los instructores puedan llevar este material en sus clases en tiempo y forma, manteniendo a sus alumnos actualizados sobre los ataques y vulnerabilidades que ocurren en el mundo real. 
+
+Este laboratorio cubre los siguientes tópicos:
+
+\begin{itemize}[noitemsep]
+\item Shellshock
+\item Variables de Entorno
+\item Definición de Funciones en Bash
+\item Programas CGI y Apache
+\end{itemize}
+
+
+\paragraph{Lecturas y Videos.}
+Para una cobertura más detallada sobre el ataque de Shellshock puede consultar:
+\begin{itemize}
+\item Capítulo 3 del libro de SEED, \seedbook
+\item Sección 3 del curso de SEED en Udemy, \seedcsvideo
+\end{itemize}
+
+
+\paragraph{Entorno de Laboratorio.} \seedenvironmentB \nodependency
+
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Configuración del Entorno de Laboratorio} 
+
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Configuración DNS}
+
+En nuestro setup hemos configurado el contenedor del Servidor Web en la IP \texttt{10.9.0.5}. El hostname del servidor se llama \texttt{www.seed-server.com}.
+Necesitamos mapear este nombre de dominio su IP. Para ello deberá agregar la siguiente entradasen el archivo \texttt{/etc/hosts}.
+Para poder modificar este archivo ud. debe contar con privilegios de root:
+
+\begin{lstlisting}
+10.9.0.5       www.seed-server.com
+\end{lstlisting}
+ 
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Setup del Contenedor y sus Comandos}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/container/setup}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Servidor Web y CGI}
+
+En este laboratorio, lanzaremos un ataque Shellshock sobre el contenedor del Servidor Web. Muchos Servidores Web tienen activado CGI, que es un método standard 
+que se usa en páginas web para generar contenido para los aplicativos que corren estás páginas. Muchos programas CGI son scripts shell, por lo que antes que se corra el programa CGI, un programa shell será invocado primero y esta invocación está dada por la interacción de usuarios externos al sistema. Si el programa shell es un script en bash vulnerable, podemos explotar la vulnerabilidad de Shellshock para obtener privilegios en el servidor.
+
+En nuestro contenedor que contiene el servidor web, hemos creado un programa CGI muy simple (llamado \texttt{vul.cgi}). 
+Este programa solamente imprimirá el mensaje {\tt "Hello World"} usando un script shell.
+El programa CGI está dentro del directorio default donde Apache guarda los programas CGI \texttt{/usr/lib/cgi-bin} y debe ser ejecutable.
+
+\begin{lstlisting}[caption=\texttt{vul.cgi}] 
+(*@\textbf{\#!/bin/bash\_shellshock}@*)          
+
+echo "Content-type: text/plain"
+echo
+echo
+echo "Hello World"
+\end{lstlisting}
+
+Este programa CGI usa \texttt{/bin/bash\_shellshock} (primera línea), en vez de usar \texttt{/bin/bash}. Esta línea especifíca que tipo de shell será invocada cuando se corra el script. Para este laboratorio necesitamos usar la versión vulnerable de Bash.
+
+Para acceder al programa CGI desde la web, podemos usar un navegador tipeando la siguiente URL: \url{http://www.seed-server.com/cgi-bin/vul.cgi}, o usar el  comando {\tt curl} en la shell, ambos hacen lo mismo. Por favor asegúrese que el contenedor esté corriendo.
+
+
+\begin{lstlisting}
+$ curl http://www.seed-server.com/cgi-bin/vul.cgi
+\end{lstlisting}
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Tareas del Laboratorio}
+
+Para más detalles sobre el ataque Shellshock puede consultar el libro de SEED, no repetiremos las guías en este laboratorio.
+
+% -------------------------------------------
+% SUBSECTION
+% ------------------------------------------- 
+\subsection{Tarea 1: Experimentando con Funciones en Bash}
+
+Debido que en Ubuntu 20.04 la versión de Bash ha sido corregida, y ya no es vulnerable al ataque de Shellshock. Dada esta situación y a fines de poder realizar este ataque hemos instalado la versión vulnerable de Bash dentro del contenedor (en el directorio  \texttt{/bin}). 
+Este programa puede ser obtenido en el directorio \texttt{Labsetup} (dentro de \texttt{image\_www}). 
+El nombre de este programa es \texttt{bash\_shellshock}. necesitamos usar esta versión del binario de Bash para nuestra tarea. Puede correr esta shell tanto dentro del contenedor como en su computadora local.
+El manual del contenedor está en el sitio oficial del laboratorio.
+
+Por favor diseñe un experimento para verificar si esta versión de Bash es vulnerable o no al ataque de Shellshock. Haga lo mismo con la versión parcheada de \texttt{/bin/bash} y reporte sus observaciones.
+
+
+% -------------------------------------------
+% SUBSECTION
+% ------------------------------------------- 
+\subsection{Tarea 2: Enviando datos a Bash por medio de Variables de Entorno}
+
+Para explotar la vulnerabilidad de Shellshock en un script bash basado en un programa CGI, los atacantes necesitan pasar los datos al programa bash vulnerable y estos datos serán pasados a través de las variables de entorno. En esta tarea necesitamos ver como logramos este objetivo. Hemos provisto otro programa CGI (\texttt{getenv.cgi}) dentro del servidor para ayudarlo a identificar que datos de usuario puede obtener a dentro de las variables de entorno de un programa CGI. Este programa muestra en pantalla todas las variables de entorno que tiene disponible.
+
+
+\begin{lstlisting}[caption=\texttt{getenv.cgi}]
+#!/bin/bash_shellshock             
+
+echo "Content-type: text/plain"
+echo
+echo "****** Environment Variables ******"
+strings /proc/$$/environ            (*@\ding{192}@*)
+\end{lstlisting}
+
+\paragraph{Tarea 2.A: Usando el navegador.}
+En el código antes mostrado, la Línea \ding{192} imprime el contenido de todas las variables de entorno del proceso en curso. Normalmente, ud. vería algo como lo que se muestra a continuación en caso de que esté usando un navegador para acceder al programa CGI. Por favor identifique cual(es) de los valores de las variable(s) de entorno son seteadas por el navegador. 
+Puede usar la extensión HTTP Header Live en su navegador para captura el request HTTP y comparar el request con las variables de entorno mostradas dentro del servidor. Por favor incluya su investigación en el informe del laboratorio.
+
+\begin{lstlisting}
+****** Environment Variables ******
+HTTP_HOST=www.seed-server.com
+HTTP_USER_AGENT=Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:83.0) ...
+HTTP_ACCEPT=text/html,application/xhtml+xml,application/xml;q=0.9, ...
+HTTP_ACCEPT_LANGUAGE=en-US,en;q=0.5
+HTTP_ACCEPT_ENCODING=gzip, deflate
+...
+\end{lstlisting}
+
+ 
+\paragraph{Tarea 2.A: Usando \texttt{curl}.}
+Si queremos setear las variables de entorno con valores arbitrarios, debemos de modificar el comportamiento del navegador, eso sería muy complicado. Afortunadamente, hay una herramienta de consola llamada \texttt{curl}, que permite a los usuarios controlar la mayoría de los campos en un request HTTP. Aqui hay algunas opciones útiles: (1) el parámetro \texttt{-v} sirve para mostrar el header del request HTTP; (2) los parámetros  \texttt{-A}, \texttt{-e}, y 
+\texttt{-H} sirven para setear campos en el header del request y ud. debe de encontrar que campos debe de setear y sus valores respectivos.
+Por favor incluya su hallazgos en el informe del laboratorio
+A continuación se muestran unos ejemplos:
+ 
+
+\begin{lstlisting}
+$ curl -v www.seed-server.com/cgi-bin/getenv.cgi
+$ curl -A "my data" -v www.seed-server.com/cgi-bin/getenv.cgi
+$ curl -e "my data" -v www.seed-server.com/cgi-bin/getenv.cgi
+$ curl -H "AAAAAA: BBBBBB" -v www.seed-server.com/cgi-bin/getenv.cgi
+\end{lstlisting}
+ 
+Basado en este experimento, describa cuales son las opciones de \texttt{curl} que sirven para inyectar datos dentro de las variables de entorno del programa CGI.
+
+
+% -------------------------------------------
+% SUBSECTION
+% ------------------------------------------- 
+\subsection{Tarea 3: Lanzando el Ataque de Shellshock}
+
+Estamos listos para lanzar el ataque de Shellshock.
+Este ataque no depende de lo que hay en el programa CGI ya que apunta al programa objetivo bash, que es invocado antes que el programa CGI sea ejecutado. Su tarea es lanzar el ataque a por medio de la URL \url{http://www.seed-server.com/cgi-bin/vul.cgi}, haciendo que el servidor corra un comando arbitrario.
+
+Si su comando tiene un output en texto plano y quiere que ese output sea devuelto hacia ud., necesita seguir el siguiente procedimiento: debería de comenzar con \texttt{Content\_type: text/plain}, seguido por una línea en blanco, y el comando que imprimirá la información en texto plano. Por ejemplo, si ud. quiere que el servidor retorne una lista de archivo de un directorio, su comando debería de ser algo así:
+
+\begin{lstlisting}
+echo Content_type: text/plain; echo; /bin/ls -l
+\end{lstlisting}
+
+Para esta tarea, use tres formas diferentes (es decir tres campos diferentes en el header HTTP) para lanzar el ataque de Shellshock en contra del programa CGI. Necesitará alcanzar los siguientes objetivos. Para cada uno de ellos, debe usar una sóla forma pero en total deben de ser tres.
+
+\begin{itemize}
+\item Tarea 3.A: Haga que el servidor devuelva el contenido del archivo \texttt{/etc/passwd}.
+
+\item Tarea 3.B: Haga que el servidor retorne el user ID de su proceso. Puede usar el comando \texttt{/bin/id} para imprimir esta información.
+
+\item Tarea 3.C:  Haga que el servidor cree un archivo dentro del directorio \texttt{/tmp}. Necesitará enttrar al contenedor para verificar que este archivo fue creado o no, o puede usar otro ataque de Shellshock para listar los archivos dentro del directorio \texttt{/tmp}.
+
+\item Tarea 3.D: Haga que el servidor borre el archivo que ha sido creado en el directorio \texttt{/tmp}.
+\end{itemize} 
+
+
+\paragraph{Preguntas.} Por favor conteste las siguientes preguntas:
+\begin{itemize}
+\item Pregunta 1: ¿Es posible robar el contenido del archivo shadow \texttt{/etc/shadow} del servidor? ¿Porqué o Porqué no? 
+La información obtenida en la Tarea 3.B debería de darle una pista.
+
+\item Pregunta 2: Los requests HTTP GET típicamente ubican su datos en la URL después del símbolo \texttt{?}. Esta podría ser otra forma de lanzar el ataque. En el ejemplo siguiente ubicamos los datos en la URL y encontramos que los datos usados se guardan en la siguiente variable de entorno: 
+
+\begin{lstlisting}
+$ curl "http://www.seed-server.com/cgi-bin/getenv.cgi?AAAAA"
+...
+QUERY_STRING=AAAAA
+...
+\end{lstlisting}
+
+¿Se puede usar este método para lanzar el ataque de Shellshock? Por favor realize sus experimentos y saque sus conclusiones basados en los mismos.
+     
+\end{itemize}
+
+  
+
+
+% -------------------------------------------
+% SUBSECTION
+% ------------------------------------------- 
+\subsection{Tarea 4: Obteniendo una shell reversa a través del ataque de Shellshock }
+
+La vulnerabilidad de Shellshock permite que en los ataques su ejecuten comandos arbitrarios en una máquina víctima. En ataques reales los atacantes suelen ejecutar una shell en vez de usar comando hardcodeados, a través de esta shell los atacantes pueden ejecutar diferentes comandos siempre y cuando el proceso de esta shell este en ejecución.
+Para lograr este objetivo, los atacantes necesitan correr una shell reversa.
+
+Una shell reversa es un proceso que dispara una shell en una máquina, donde la entrada y la salida de la misma es controlada por alguien desde una máquina remota. Básicamente la shell corre en la máquina de la víctima pero toma su entrada desde la máquina del atacante y imprime su salida en la máquina del atacante. La shell reversa le otorga a los atacantes una forma efectiva para poder correr comandos en una máquina comprometida.
+En el libro de SEED se da una explicación en detalle sobre como crear una shell reversa. Hemos hecho una síntesis de la misma en la Sección \ref{shellshock:sec:reverseshell}.
+En esta Tarea, necesita demostrar como puede obtener una shell reversa en la máquina víctima usando el ataque de Shellshock.
+
+% -------------------------------------------
+% SUBSECTION
+% ------------------------------------------- 
+\subsection{Tarea 5: Usando la versión Parcheada de Bash}
+
+Ahora usaremos la versión de bash que fue parcheada. La versión parcheada es el archivo \texttt{/bin/bash}.
+Por favor cambie la primera línea del los programas CGI con la versión parcheada de Bash, intente hacer nuevamente la Tarea 3 y describa sus observaciones.
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Guías: Creando una Shell Reversa}
+\label{shellshock:sec:reverseshell}
+
+
+\input{\commonfolder/guidelines/reverse_shell}
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Informe del Laboratorio}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/submission}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% *******************************************
+% SECTION
+% *******************************************
+\section*{Agradecimientos}
+
+\input{\commonfolder/acknowledgments}
+
+\end{document}
+

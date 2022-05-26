@@ -1,0 +1,476 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Copyright by Wenliang Du.                                       %%
+%%  This work is licensed under the Creative Commons                %%
+%%  Attribution-NonCommercial-ShareAlike 4.0 International License. %%
+%%  To view a copy of this license, visit                           %%
+%%  http://creativecommons.org/licenses/by-nc-sa/4.0/.              %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\commonfolder}{../../common-files}
+
+\input{\commonfolder/header}
+\input{\commonfolder/copyright}
+
+
+\lhead{\bfseries SEED Labs -- Laboratorio del Ataque Spectre}
+
+\def \code#1 {\fbox{\scriptsize{\texttt{#1}}}}
+
+\begin{document}
+
+
+\newcommand{\spectreFigs}{./Figs}
+
+\begin{center}
+{\LARGE Laboratorio del Ataque Spectre}
+\end{center}
+
+
+\seedlabcopyright{2018}
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Introducción}
+
+Descubierta en el 2017 y publicada en Enero del 2018, el ataque Spectre explota una serie de vulnerabilidades críticas que existen en muchos procesadores modernos, incluyendo procesadores Intel, AMD y ARM~\cite{Kocher2018spectre}.
+Estas vulnerabilidades le permiten a un programa romper con la isolación inter y intra proceso, por lo que un programa malicioso puede leer data de un area de memoria que no le pertenece. En un escenario normal tal acceso no es permitido debido a las protecciones de hardware (para la isolación inter-proceso) o protecciones de software (para la isolación intra-proceso), pero esta vulnerabilidad existente a nivel diseño de las CPUs permite evadir este tipo de proteccioness. Dado que esta vulnerabilidad existe a nivel de hardware, es muy difícil resolver el problema de raíz, al menos que se cambie el procesador de la PC. La vulnerabilidad Spectre representa un tipo especial de falla en el diseño de los CPUs, junto con la vulnerabilidad Meltdown, nos proveen una invaluable lección para la educación de la seguridad.
+
+
+\underline{Objetivos del Aprendizaje} El objetivo de este laboratorio es que los estudiantes puedan aprender y logren experiencia en el Ataque Spectre. El ataque por sí mismo es algo sofisticado, es por eso que para una mejor compresión del mismo y de como atacarlo, lo hemos fragmentado en pequeños pasos. Una vez que los estudiantes entiendan cada uno de los pasos, no debería de resultarles difícil reunir todos los elementos y proceder a realizar el ataque. Los estudiantes usarán el Ataque Meltdown para mostrar en pantalla/obtener e imprimir un dato secreto guardado dentro del kernel.
+
+Este laboratorio cubre los siguientes tópicos:
+
+
+\begin{itemize}[noitemsep]
+\item Ataque Spectre
+\item Ataque Side channel
+\item CPU caching
+\item Ejecución fuera de orden y Branch Prediction dentro de la microarquitectura del CPU
+\end{itemize}
+
+
+
+\paragraph{Lecturas y Videos.}
+Para una cobertura más detallada sobre el ataque Spectre puede consultar:
+
+\begin{itemize}
+\item Capítulo 14 del libro de SEED, \seedbook
+\item Sección 8 del curso de SEED en Udemy, \seedcsvideo
+\end{itemize}
+
+
+\paragraph{Entorno de Laboratorio.} \seedenvironmentAB
+
+Al usar este laboratorio, los instructores deben de tener en cuenta que:
+Primero, aunque la vulnerabilidad Spectre es una falla común de diseño dentro de los CPUs Intel, AMD y ARM, este laboratorio ha sido solamente testeado en CPUs Intel.
+Segundo, Intel está trabajando en la solución de esta vulnerabilidad, por lo que si un estudiante usa máquina con un procesador Intel muy nuevo, el ataque puede que no funcione. Hasta Mayo del 2021 no se reportaron problemas pero a medida que pasa el tiempo puede que esto cambie.
+
+\paragraph{Agradecimientos} Este laboratorio ha sido desarrollado con la ayuda de 
+Hao Zhang y Kuber Kohli, estos estudiantes son estudiantes graduado en el Departamento de Ingeniería Electrónica y Ciencias de la Computación de la Universidad de Syracuse.
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+%\section{Code Compilation}
+%\section{Tasks 1-2: Side Channel Attacks}
+
+
+\newcommand{\sideChannelFigs}{../Meltdown_Attack/Figs}
+\input{../Meltdown_Attack/Side_Channel_Attack.tex}
+
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Tarea 3: Ejecución Fuera de Orden y Branch Prediction}
+
+El objetivo de esta tarea es entender la ejecución fuera de orden en los CPUs. Nos valdremos de un experimento para que los estudiantes puedan entender este tipo de ejecución.
+
+
+\subsection{Ejecución Fuera de Orden} 
+
+El ataque Spectre se basa en una característica importante que está implementada en la mayoría de los CPUs. Para entenderla, veamos el siguiente código.
+Este código chequea que \texttt{x} sea menor que \texttt{size}, si esto es verdadero la variable data será actualizada. Asuma que el valor de \texttt{size} es 10, por lo que si \texttt{x} es igual a \texttt{15}, el código de la Línea 3 no será ejecutado.
+
+
+\begin{lstlisting}
+1  data = 0;
+2  if (x < size) {   
+3     data = data + 5; 
+4  }
+\end{lstlisting}
+ 
+La sentencia del código anterior es verdadera cuando se mira desde fuera del CPU. 
+Sin embargo esto no es así si nos metemos dentro del mismo y observamos la secuencia de ejecución a nivel de microarquitectura. Si hacemos esto, descubriremos que la Línea 3 puede ser ejecutada de forma exitosa aunque el valor de \texttt{x} sea mayor a \texttt{size}. Esto se debe a una técnica de optimización implementada en los CPUs modernos, llamada ejecución fuera de orden (out-of-order execution).
+
+La ejecución fuera de orden es una técnica de optimización que le permite a la CPU maximizar la utilización de todas sus unidades de ejecución. En lugar de ejecutar las instrucciones en el orden estricto en que fueron establecidas, los CPUs modernos de alta performance permiten que la ejecución fuera de orden usen todas sus unidades de ejecución para optimizar la performance y manejar de manera eficiente el uso de recursos, de otra forma estaríamos en un escenario donde una instrucción esperaría que termine la ejecución de una instrucción anterior teniendo la posibilidad de poder ser ejecutada en unidades de ejecución en el CPU que están ociosas
+
+Si observamos el código de ejemplo anterior, y nos posicionamos a un nivel de microarquitectura, la Línea 2 implica dos operaciones: Cargar el valor de \texttt{size} de la memoria y comparar el valor con \texttt{x}. Si la variable  \texttt{size} no está dentro de la caché del CPU, puede tomar cientos de ciclos de reloj del CPU antes de que este valor sea leído.
+En lugar de esperar ociosamente a que esto suceda, los procesadores modernos tratan de predecir el resultado de esta comparación, y correr de forma especulativa diferentes branches basados en estimaciones. Dado que dicha ejecución comienza antes de que la comparación termine, la ejecución es llamada ejecución fuera de orden, el CPU guarda su estado actual y los valores de los registros.
+Cuando el valor de  \texttt{size} finalmente está disponible, el CPU chequea el resultado actual. Si la predicción es verdadera, el proceso especulativo anteriormente realizado se usado y esto implica una ganancia significativa en la perfomance. Si la predicción es errónea el CPU volverá a su estado inicial, por lo que todos los resultados provocados por la ejecución fuera de orden serán descartados como si esto nunca hubiera pasado. Ese es el porque si miramos desde afuera la Línea 3 del código pareciera que nunca fue ejecutada.
+La Figura \ref{spectre:fig:spectre} ilustra la ejecución fuera de orden causada por la ejecución de la Línea 2.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.75\textwidth]{\spectreFigs/spectre.pdf}
+\caption{Ejecución Especulativa (out-of-order execution)}
+\label{spectre:fig:spectre}
+\end{figure}
+
+Tanto Intel como otros fabricantes de CPUs cometieron algunos errores graves en el diseño de la técnica de la ejecución fuera de orden (out-of-order execution).
+En el contexto de este diseño, se borrán los efectos de la ejecución fuera de orden tanto en los registros como en la memoria si es que tal ejecución no se supone que deba de ocurrir. Sin embargo, olvidaron algo, los efectos en las caches del CPU.
+Durante la ejecución fuera de orden, la memoria a la que se intenta acceder es guardada tanto en en un registro como en la caché. Si la ejecución fuera de orden debe de ser descartada o mejor dicho los efectos de la misma, la caché en donde se guardan estos resultados o efectos, también debería de ser descartados. Desafortunadamente este no es el caso en la mayoría de los CPUs.
+Por lo tanto, esto crea un efecto observable.
+Utilizando la técnica de side channel descrita en las Tareas 1 y 2,
+se puede observar tal efecto. El ataque Spectre usa de manera inteligente este
+efecto observable para descubrir valores secretos que se suponen protegidos.
+
+
+
+%\paragraph{More details on speculative execution?} To understand 
+%the benefit of speculative execution, Let us see some data. 
+%When a micro-processor reads from the main memory i.e. RAM, the read
+%timings are about 60 nanoseconds (60 billionths of a second). Even though
+%it appears to be lightning fast to humans, to
+%micro-processor it is a really long time. A micro-processors can have cycle times as short as
+%2 nanoseconds. This cycle time is the time between one RAM access to the time when another
+%access can be started. The cycle time are different than clock cycle which is number of cycles
+%per second. So, to a microprocessor with cycle time with 2 nanosecond, 60 nanoseconds of read
+%time is really long. The L2 cache are generally at least twice as fast as RAM while L1 cache
+%are built directly in the micro-processor so the read is done at the micro-processor speed.
+
+
+% -------------------------------------------
+% SUBSECTION
+% ------------------------------------------- 
+\subsection{El Experimento}
+
+En esta tarea, usaremos un experimento para observar los efectos causados por la ejecución fuera de orden. El código usado en este experimento es mostrado a continuación.
+Algunas de las funciones usada en el código son las mismas que se usaron en tareas anteriores, por lo que no serán repetidos.
+
+\begin{lstlisting}[caption=\texttt{SpectreExperiment.c}, label=spectre:list:outoforder]
+#define CACHE_HIT_THRESHOLD (80)
+#define DELTA 1024
+
+int size = 10;
+uint8_t array[256*4096];
+uint8_t temp = 0;
+
+void victim(size_t x) 
+{
+  if (x < size) {                          (*@\ding{192}@*)
+     temp = array[x * 4096 + DELTA];       (*@\ding{193}@*)
+  }
+}
+
+int main() 
+{
+  int i;
+
+  // FLUSH the probing array
+  flushSideChannel();
+
+  // Train the CPU to take the true branch inside victim()
+  for (i = 0; i < 10; i++) {               (*@\ding{194}@*)
+      victim(i);                           (*@\ding{195}@*)
+  }
+
+  // Exploit the out-of-order execution 
+  _mm_clflush(&size);                      (*@\ding{80}@*)
+  for (i = 0; i < 256; i++)  
+      _mm_clflush(&array[i*4096 + DELTA]);
+  victim(97);                              (*@\ding{196}@*)
+
+  // RELOAD the probing array
+  reloadSideChannel();
+  return (0);
+}
+\end{lstlisting}
+
+Para que las CPUs puedan realizar la ejecución especulativa, deberían de poder predecir el resultado de la condición IF. Las CPUs guardan un registro de los branches que fueron elegidos para su ejecución en el pasado y luego usa estos resultados para predecir que branch debería de ser elegido en una ejecución especulativa.
+Además, si quisieramos que la CPU tome un branch en particular dentro de la ejecución especulativa, deberíamos de entrenar al CPU, por lo que nuestro branch elegido se puede convertir en el resultado de esa predicción. Este entrenamiento es hecho dentro del bloque \texttt{for} que comienza en la Línea \ding{194}. 
+Dentro de este for-loop, invocamos a la función \texttt{victim()} con un argumento cuyo valor es pequeño (este va de 0 a 9).
+Estos valores son menores que el valor \texttt{size}, por lo que el true-branch para esta condición en la Línea \ding{192} es siempre el que se elige. Esta es la fase de entrenamiento, que esencialmente entrena a la CPU que espera a que la 
+condición IF sea verdadera.
+
+Una vez entrenada la CPU, invocamos a la función \texttt{victim()} (Línea \ding{196}) pero esta vez enviamos un parámetro con un valor más grande (\texttt{97}). Este valor es mas grande que \texttt{size}, por lo que se tomará el false-branch y no el true-branch. Sin embargo, hemos flusheado de la memoria la variable \texttt{size}, por lo que obtener su valor desde memoria puede llevar un rato. Aquí es donde la CPU hará las predicciones y empezará la ejecución especulativa.
+
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Tarea 3} 
+
+Por favor compile el programa \texttt{SpectreExperiment.c} mostrado en el Fragmento \ref{spectre:list:outoforder}  (Vea la Sección \ref{sidechannel:sec:compilation} para más detalles en como realizar la compilación); ejecute el programa y describa sus observaciones. Puede que haya algo de ruído en el side channel debido al cacheo de datos extras por el CPU, nos encargaremos de reducir este ruído mas adelante, por ahora puede ejecutar la tarea varias veces con el objetivo de observar sus efectos. Por favor observe cuando la Línea \ding{193} es ejecutada y cuando no, en el caso que el valor \texttt{97} sea usado en la función \texttt{victim()}. 
+En conjunto con lo anterior, por favor haga lo siguiente:
+
+
+\begin{itemize}
+\item Comente la línea marcada con \ding{80} y ejecute todo nuevamente. Explique su observación. Después de terminar con este experimento, descomemente lo que comentó anteriormente, para así no afectar las tareas que vendrán después.
+
+\item Reemplace la Línea \ding{195} con \texttt{victim(i + 20)}; ejecute el código nuevamente y explique su observación.
+%Because \texttt{i + 20} is always larger than the value 
+%of \texttt{size}, the false-branch of the if-condition in Line \ding{192} will always be 
+%executed. Basically, we are training the CPU to go to the false-branch.
+%That should affect the out-of-order execution when 
+%\texttt{victim()} is called at Line \ding{195}.   
+\end{itemize}
+ 
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Tarea 4: El Ataque Spectre}
+
+Como hemos visto en las tareas anteriores, podemos hacer las CPUs ejecuten el true-branch de un IF, aunque la condición sea falsa. Si la ejecución fuera de orden no produce un efecto visible, este no es un problema, dado que la mayoría de las CPUs que utilizan este mecanismo no limpian su caché, esto hace que se dejen rastros de los resultados producidos por esta ejecución fuera de orden dentro de la caché. El ataque Spectre usa estos rastros para robar datos secretos.
+
+Estos datos pueden ser datos de un proceso en ejecución que no es el que está siendo ejecutado o del proceso que está siendo ejecutado. Si los datos son de otro proceso, el mecanismo de isolación del mismo se realiza a nivel hardware, en cambio si los datos son del mismo proceso, la isolación se da a nivel de software, como puede ser un mecanismo de sandbox.
+El ataque de Spectre puede ser usado para atacar ambos mecanismos de isolación.
+Sin embargo obtener los datos de un proceso que usa la isolación por hardware es mucho más difícil que aquel proceso que usa la isolación por software. 
+Para hacer esto más sencillo, este laboratorio se centrará solamente en obtener los datos pertenecientes al proceso en ejecución.
+
+Cuando en un navegador se visitan diferentes páginas webs en servidores remotos comúnmente se usa el mismo proceso para abrirlas. El mecanismo de sandbox implementado dentro del navegador provee un entorno isolado para estas páginas, por lo que una página no podrá acceder a los datos de otra página.
+La mayoría de estas protecciones de software se basan en chequear ciertas condiciones para determinar si un determinado acceso es permitido o no. 
+Podemos evadir este tipo de chequeo de acceso usando el ataque Spectre, valiéndonos de la ejecución fuera de orden del CPU sobre el branch del código que se intenta proteger incluso cuando esa condición sea falsa.
+
+
+% -------------------------------------------
+% SUBSECTION
+% ------------------------------------------- 
+\subsection{Setup del Experimento} 
+
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width= 0.7\textwidth]{\spectreFigs/buffer_new.pdf}
+\caption{Setup del Experimento: El Buffer y el Dato Secreto Protegido}
+\label{spectre:fig:buffer}
+\end{figure}
+
+La Figura \ref{spectre:fig:buffer} muestra el setup para el experimento.
+En este setup, existen dos regiones: la región restringida y la región no restringida.
+Esta restricción se logra a través de una condición IF que está implementada es una función sandbox mostrada más abajo. La función sandbox retorna el valor de \texttt{buffer[x]} para un valor \texttt{x} establecido por el usuario, esta función retorna el valor solamente si este valor \texttt{x} se encuentra dentro de los límites del buffer.
+La función sandbox no retonará nada que pertenezca al área restringida de la memoria del programa.
+
+\begin{lstlisting}
+unsigned int bound_lower = 0;
+unsigned int bound_upper = 9;
+uint8_t buffer[10] = {0,1,2,3,4,5,6,7,8,9};
+
+// Sandbox Function
+uint8_t restrictedAccess(size_t x)
+{
+  if (x <= bound_upper && x >= bound_lower) {
+     return buffer[x];
+  } else {
+     return 0;
+  }
+}
+\end{lstlisting}
+
+Existe un valor secreto dentro del área restringida (por encima o por debajo del buffer) y la dirección de memoria de este valor es conocida para el atacante pero el atacante no puede acceder directamente a la dirección de memoria que contiene este dato.
+La única forma de hacerlo es a través de la función de sandbox. En la sección anterior hemos aprendido que aunque el true-branch nunca se ejecute, si \texttt{x} es más grande que el tamaño de un buffer, a nivel de microarquitectura, se va a ejecutar y va a dejar rastros de los resultados de esta ejecución una vez que está haya sido revertida.
+
+
+% -------------------------------------------
+% SUBSECTION
+% ------------------------------------------- 
+\subsection{El Programa usado por el Experimento}
+
+El código para el ataque Spectre es mostrado más abajo. En este código, se define un valor secreto en la Línea \ding{192}. Asuma que no se puede modificar de forma directa el acceso a las variables \texttt{secret}, \texttt{bound\_lower}, o 
+\texttt{bound\_upper} (asumimos que podemos flushear las variables que marcan los límites superiores e inferiores en la caché).
+Nuestro objetivo es mostrar el valor secreto usando el ataque Spectre. El código solamente obtiene el primer byte de este valor secreto.
+Los estudiantes pueden extender este código para obtener más bytes del mismo.
+
+
+\begin{lstlisting}[caption=\texttt{SpectreAttack.c}, label=spectre:list:spectreattack]
+#define CACHE_HIT_THRESHOLD (80)
+#define DELTA 1024
+
+unsigned int bound_lower = 0;
+unsigned int bound_upper = 9;
+uint8_t buffer[10] = {0,1,2,3,4,5,6,7,8,9};
+char    *secret    = "Some Secret Value";     (*@\ding{192}@*)
+uint8_t array[256*4096];
+
+// Sandbox Function
+uint8_t restrictedAccess(size_t x)
+{
+  if (x <= bound_upper && x >= bound_lower) {
+     return buffer[x];
+  } else { return 0; }
+}
+
+void spectreAttack(size_t index_beyond)
+{
+  int i;
+  uint8_t s;
+  volatile int z;
+
+  // Train the CPU to take the true branch inside restrictedAccess().
+  for (i = 0; i < 10; i++) {
+      restrictedAccess(i);
+  }
+
+  // Flush bound_upper, bound_lower, and array[] from the cache.
+  _mm_clflush(&bound_upper);
+  _mm_clflush(&bound_lower);
+  for (i = 0; i < 256; i++)  { _mm_clflush(&array[i*4096 + DELTA]); }
+  for (z = 0; z < 100; z++)  {   }
+
+  s = restrictedAccess(index_beyond);      (*@\ding{193}@*)
+  array[s*4096 + DELTA] += 88;             (*@\ding{194}@*)         
+}
+
+int main() {
+  flushSideChannel();
+  size_t index_beyond = (size_t)(secret - (char*)buffer);  (*@\ding{195}@*)
+  printf("secret: %p \n", secret);
+  printf("buffer: %p \n", buffer);
+  printf("index of secret (out of bound): %ld \n", index_beyond);
+  spectreAttack(index_beyond);
+  reloadSideChannel();
+  return (0);
+}
+\end{lstlisting}
+
+La mayoría del código es el mismo que se muestra en el Fragmento \ref{spectre:list:outoforder}, por lo que evitaremos explicar su funcionamiento. La parte más importante son las Líneas \ding{193}, \ding{194}, y \ding{195}. La Línea \ding{195} calcula el offset del valor secreto a partir del comienzo del buffer (asumimos que la dirección del valor secreto es conocida por el atacante; en los ataques reales existen varias maneras de encontrar esta dirección).
+El offset está más allá de los límites del buffer, por lo que sí este es más grande que el límite mas alto (upper bound) o mas chico que el límite mas bajo (lower bound) lo que vendría a ser un número negativo. Este offset caerá dentro de la función \texttt{restrictedAccess()}.
+Dado que hemos entrenado a la CPU para que tome el true-branch dentro de \texttt{restrictedAccess()}, la CPU retornará \texttt{buffer[index\_beyond]}, al realizarse la ejecución fuera de orden y este contendrá el valor secreto.
+El valor secreto hace que su elemento correspondiente ddentro del arreglo \texttt{array[]} sea cargado en la caché. Todos estos paso serán eventualmente revertidos, por lo que desde afuera del CPU la función \texttt{restrictedAccess()} retornará cero y no el valor secreto.
+Sin embargo dado que no se limpia la caché, sabemos que \texttt{array[s*4096 + DELTA]} se encuentra dentro de ella. Ahora, sólo necesitamos usar la técnica de side-channel para descubrir cual es el elemento del arreglo \texttt{array[]} que se encuentra en la caché.
+
+
+
+\paragraph{Tarea.} Por favor compile y ejecute 
+\texttt{SpectreAttack.c}. Describa su observación y anote si pudo obtener el valor secreto. Si hay mucho ruído en el side channel, es posible que si ejecuta el ataque reiterada veces no obtenga siempre el resultado deseado. Nuevamente es importante destacar que para probar esto y poder obtener el valor secreto debe de correr el ataque muchas veces hasta que llegar al valor deseado.
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Tarea 5: Mejorando la Precisión del Ataque}
+
+En las tareas anteriores, se puede observar que los resultados tienen algo de ruído y no siempre son los esperados. Esto se debe a que muchas veces la CPU carga valores extra en la caché que se esperan a ser usados más adelante, también puede deberse a que el valor umbral establecido no es muy preciso.
+Este ruído en la caché puede afectar los resultados de nuestros ataques. Necesitamos realizar el ataque varia veces; en vez de hacerlo manualmente, podemos usar el siguiente código para automatizar esta tarea.
+
+Para mejorar la precisión del ataque se usa una técnica estadística.
+La idea es crear un arreglo de scores de un tamaño de 256, un elemento por cada posible valor secreto. Una vez hecho se correrá el ataque reiterada veces. Cada vez que nuestro programa de ataque indique que el dato secreto es \texttt{k} (esto puede ser falso), agregamos 1 en \texttt{scores[k]}. Después de correr el ataque muchas veces, usamos el valor \texttt{k} que posea el score más alto como nuestra estimación final en lugar de usar el obtenido en una sola corrida. El código de esta técnica es mostrado a continuación:
+
+
+%One reason for the noise was the way we
+%probe the array to read from the side channel. Till now, we were reading the array
+%sequentially. To increase the performance, the CPU loads a lot of values from the $array$ into
+%the cache. To prevent this, we use the code in line \ding{192}. The code simply assigns a value
+%between 0 \& 255 to $random\_i$ and the value is not repeated. Since, the value is randomly
+%selected the CPU does not load the extra values into the cache reducing the noise. 
+
+
+\begin{lstlisting}[caption=\texttt{SpectreAttackImproved.c}]
+static int scores[256];
+
+void reloadSideChannelImproved()
+{
+  ......
+  for (i = 0; i < 256; i++) {
+     ......
+     if (time2 <= CACHE_HIT_THRESHOLD)
+        scores[i]++; /* if cache hit, add 1 for this value */
+  }
+}
+
+void spectreAttack(size_t index_beyond)
+{
+  ... omitted: same as that in SpectreAttack.c ...
+}
+
+int main() {
+  int i;
+  uint8_t s;
+  size_t  index_beyond = (size_t)(secret - (char*)buffer);
+
+  flushSideChannel();
+  for(i=0;i<256; i++) scores[i]=0;
+
+  for (i = 0; i < 1000; i++) {
+    printf("*****\n");                 (*@\ding{192}@*)
+    spectreAttack(index_beyond);
+    usleep(10);                        (*@\ding{193}@*)
+    reloadSideChannelImproved();
+  }
+
+  int max = 0;                     
+  for (i = 0; i < 256; i++){
+   if(scores[max] < scores[i])
+     max = i;
+  }
+
+  printf("Reading secret value at index %ld\n", index_beyond);
+  printf("The  secret value is %d(%c)\n", max, max);
+  printf("The number of hits is %d\n", scores[max]);
+  return (0);
+}
+\end{lstlisting}
+
+\paragraph{Tareas.} Por favor compile y ejecute \texttt{SpectreAttackImproved.c},
+y realice las siguientes tareas:
+
+\begin{itemize}
+
+\item Puede observar que al correr el código el que tenga el score más alto es posible que sea \texttt{scores[0]}. Por favor descubra el porque esto y arregle el código de tal forma que se imprima el valor secreto (que no sea el que está en el índice cero).
+
+\item La Línea \ding{192} parece inútil, but basados en nuestra experiencia en la Máquina Virtual de SEED que corre Ubuntu 20.04, sin esta línea el ataque no funcionará. En la Máquina Virtual de SEED que corre Ubuntu 16.04, no es necesaria esta línea. Todavía no hemos podido encontrar la razón del porque de este comportamiento, por lo que si ud. puede encontrarla, su instructor podría darle puntos extras.
+Por favor ejecute el programa con y sin esta línea y describa sus observaciones.
+ 
+ \item La Línea \ding{193} hace que el programa se pause durante 10 microsegundos. Cuanto afecta a la tasa de éxito del ataque este tiempo de pausa. Por favor intente con diferentes valores y describa sus observaciones.
+
+\end{itemize}
+ 
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Tarea 6: Obteniendo la Cadena Completa}
+
+En la tarea anterior, hemos leído solamente el primer caracter de la cadena \texttt{secret}. En esta tarea, necesitamos imprimir la cadena entera usando el ataque Spectre. Por favor escriba su propio código o extienda el código ya existente de la Tarea 5 para lograr este objetivo; incluya los resultados de la ejecución en el informe del laboratorio.
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Informe del Laboratorio}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/submission}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section*{Agradecimientos}
+
+\input{\commonfolder/acknowledgments}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\bibliographystyle{plain}
+\def\baselinestretch{1}
+\bibliography{BibMeltdownSpectre}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{document}
+
+

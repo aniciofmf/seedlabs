@@ -1,0 +1,458 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Copyright by Wenliang Du.                                       %%
+%%  This work is licensed under the Creative Commons                %%
+%%  Attribution-NonCommercial-ShareAlike 4.0 International License. %%
+%%  To view a copy of this license, visit                           %%
+%%  http://creativecommons.org/licenses/by-nc-sa/4.0/.              %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\commonfolder}{../../common-files}
+
+\input{\commonfolder/header}
+\input{\commonfolder/copyright}
+
+
+\newcommand{\formatFigs}{./Figs}
+
+
+\lhead{\bfseries SEED Labs -- Laboratorio de Format String}
+
+
+\begin{document}
+
+\begin{center}
+{\LARGE Laboratorio de Format String}
+\end{center}
+
+\seedlabcopyright{2018 - 2020}
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Descripción General}
+
+La función \texttt{printf()} en C es usada para imprimir una cadena de acuerdo a un formato específico. El primer argumento de esta función es llamado \textit{format string}, y define como debería de ser formateada la cadena. Las cadenas con formato (format strings) usan placeholder representados por el caracter \texttt{\%} que es usado por la función \texttt{printf()} para llenarlas con datos a la hora de su parseo. El uso de las cadenas con formato no sólo se limita a la función \texttt{printf()}; existen muchas otras funciones como \texttt{sprintf()}, \texttt{fprintf()}, y \texttt{scanf()} que usan cadenas con formato. Algunos programas permiten que los usuarios ingresen parte o todo su contenido en una cadena de formato. Si este contenido no es sanitizado de manera adecuada, usuarios maliciosos pueden hacer que el programa ejecute código arbitrario. Este tipo de problema se conoce como \textit{format string vulnerability}.
+
+El objetivo de este laboratorio es que los estudiantes aprendan y ganen experiencia en las vulnerabilidades de format string, poniendo en acción lo aprendido en clase sobre este tipo de vulnerabilidad.
+Los estudiantes tendrán a mano un programa con una vulnerabilidad de format string; su tarea será desarrollar un exploit para esta vulnerabilidad, haciendo que: (1) el programa rompa, (2) se pueda leer la memoria interna del programa, (3) modificar la memoria interna del programa y más peligroso aún (4) inyectar y ejecutar código malicioso usando los privilegios de la víctima a la hora de explotar el programa vulnerable.
+Este laboratorio cubre los siguientes tópicos:
+
+
+\begin{itemize}[noitemsep]
+\item Vulnerabilidad de Format String y Inyección de Código
+\item Stack layout
+\item Shellcode 
+\item Shell Reversa
+\end{itemize}
+
+
+\paragraph{Lecturas y Videos.}
+Para una cobertura más detallada en el ataque de Format String puede consultar
+
+\begin{itemize}
+\item Capítulo 6 del libro de SEED, \seedbook
+\item Sección 9 del curso de SEED en Udemy, \seedcsvideo
+\item Este laboratorio incluye también shell reversa, tema que es cubierto en el Capítulo 9 del libro de SEED.
+\end{itemize}
+
+
+\paragraph{Entorno de Laboratorio.} \seedenvironmentC
+
+\paragraph{Nota para instructores.}
+Los instructores pueden personalizar este laboratorio, elijiendo valores para \texttt{L}. Vea la Sección \ref{sec:vulnerable_program} para más detalles.
+Dependiendo del conocimiento de los estudiantes y del tiempo que se le va a dedicar al laboratorio, los instructores pueden hacer opcional el ataque en programas de 64-bits dado que es más complicado. Los ataques en programas de 32-bits son suficiente para cubrir los conceptos básicos de los ataques de format string.
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Configuración del Entorno de Laboratorio} 
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Desactivando las Contramedidas} 
+
+Los sistemas operativos modernos, usan la randomización de los espacios de memoria (address space randomization), esto hace que las direcciones de memoria tanto en el heap como en el stack sean aleatorias, lo que ocasiona un problema a la hora de calcular las direcciónes de memoria para nuestro ataque ya que contar con estas de antemano es fundamental para que el ataque de format string sea exitoso. 
+A continuación se muestra el comando para desactivar esta contramedida:
+
+
+\begin{lstlisting}
+$ sudo sysctl -w kernel.randomize_va_space=0
+\end{lstlisting}
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{El Programa Vulnerable}
+\label{sec:vulnerable_program}
+
+El programa vulnerable usado para este laboratorio se llama \texttt{format.c} y se encuentra dentro del directorio \texttt{server-code}.
+Este programa tiene una vulnerabilidad de format string y su objetivo será explotar esta vulnerabilidad.
+El código que se muestra a continuación es ligeramente diferente al que se encuentra en el directorio del laboratorio pero en esencia son lo mismo.
+
+\begin{lstlisting}[label=format:code, 
+       caption={The vulnerable program \texttt{format.c} (with non-essential information removed)}]
+unsigned int  target = 0x11223344;
+char *secret = "A secret message\n";
+
+void myprintf(char *msg)
+{
+    // This line has a format-string vulnerability
+    printf(msg);
+}
+
+int main(int argc, char **argv)
+{
+    char buf[1500];
+    int length = fread(buf, sizeof(char), 1500, stdin);
+    printf("Input size: %d\n", length);
+
+    myprintf(buf);
+
+    return 1;
+}
+\end{lstlisting}
+
+El programa anterior lee datos del standard input y pasa estos datos a la función
+\texttt{myprintf()}, esta función llama a \texttt{printf()} que se encargará de mostrar los datos por consola.
+La forma en como se pasan estos datos a la función \texttt{printf()} es poco segura y puede desembocar en una vulnerabilidad de format string.
+Explotaremos esta vulnerabilidad
+
+Este programa se ejecutará en un servidor con privilegios de root y su standard input será redirigido a través de una conexión TCP enttre el servidor y un usuario remoto, de esta forma el programa obtendra su input de entrada desde un usuario remoto. Si el usuario puede explotar esta vulnerabilidad, puede producir daños graves.
+
+
+\paragraph{Compilación.} 
+Compilaremos el programa \texttt{format} en un binario de 32-bits y en otro de 64-bits. Nuestra Máquina Virtual Ubuntu 20.04 es una máquina virtual de 64-bits pero soporta binarios de 32-bits. Todo lo que necesitamos hacer es usar el parámetro \texttt{-m32} a la hora de compilar el programa con el comando  \texttt{gcc}.
+También usaremos el parámetro \texttt{-static} para generar librerías estáticamente linkeadas para el binario para no depender de ninguna librería dinámica ya que estas no fueron instaladas en nuestro contenedor y no soportan binarios de 32-bits.
+
+Los comandos de compilación se encuentran dentro del archivo \texttt{Makefile}. Para compilar el código, deberá tipear \texttt{make} y esto hará que los comandos del Makefile se ejecuten.
+Después de la compilación debemos de copiar el binario dentro del directorio \texttt{fmt-containers} de esta forma estará disponible en nuestros contenedores.
+A continuación se indican los comandos para realizar el proceso de compilación y la instalación:
+
+\begin{lstlisting}
+$ make
+$ make install
+\end{lstlisting}
+
+Durante la compilación, ud. verá un mensaje de warning. Este mensaje de warning es producido por una protección implementada en \texttt{gcc} para prevenir vulnerabilidades de format string. Por ahora podemos ignorarla.
+
+\begin{lstlisting}
+format.c: In function 'myprintf':
+format.c:33:5: warning: format not a string literal and no format arguments
+                        [-Wformat-security]
+   33 |     printf(msg);
+      |     ^~~~~~
+\end{lstlisting}
+
+Vale aclarar que el programa necesita ser compilado usando el parámetro  \texttt{"-z execstack"}, que hace ejecutable al stack. Dado que el objetivo final de nuestro ataque es inyectar código dentro del stack del programa vulnerable y ejecutarlo posteriormente.
+La protección de Non-executable stack permite prevenir que se ejecute en código en el stack pero puede ser evadida usando la técnica de return-to-libc, la cual es cubierta en otro laboratorio de SEED. Por un tema de simplicidad, para este laboratorio. desactivaremos esta protección.
+
+
+\paragraph{Para los instructores.} 
+Para hacer el laboratorio un poco diferente al ofrecido en el pasado, los instructores pueden cambiar el valor de \texttt{BUF\_SIZE} pidiendo a los estudiantes que compillen el códigoo del servidor usando un valor diferente en \texttt{BUF\_SIZE}.
+El valor \texttt{BUF\_SIZE} es seteado por la variable \texttt{L} y esta parametrización se realiza en el archivoo \texttt{Makefile}. Los instructores deberán de elegir un valor para esta variable basado en la sugerencia descripta en el código del archivo \texttt{format.c}.
+
+
+\paragraph{El Programa Servidor.}
+Dentro del directorio \texttt{server-code}, encontrará un archivo llamado \texttt{server.c}.
+Este es el punto de entrada principal del servidor, este programa estará a la escucha en el puerto \texttt{9090}. 
+Cuando este programa recibe una conexión TCP, ejecutará el programa \texttt{stack} y establecerá esta conexión como el standard input del programa \texttt{format}. De esta manera cuando \texttt{stack} lea los datos de su \texttt{stdin}, estará leyendo los datos que llegan de la conexión TCP (es decir los datos enviados por el usuario remoto). No es necesario que los estudiantes entiendan por completo el código de \texttt{server.c}.
+
+Para que la dirección del buffer y su frame pointer no sean siempre los mismos para cada uno de los estudiantes que realizan el laboratorio, hemos agregado un poco de aleatoriedad al programa vulnerable. Estos valores cambiarán cada vez que se el contenedor se reinicie, mientras el contenedor este corriendo los valores permanecerán iguales. Esta aleatoriedad es solamente para hacer el trabajo de los estudiantes un tanto diferente y no debe confundirse con el address randomization (ASLR).
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Setup del Contenedor y sus Comandos}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/container/setup}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Tarea 1: Rompiendo el Programa}
+
+Cuando levantamos los contenedores que están en el archivo \texttt{docker-compose.yml}, tendremos dos contenedores disponibles, cada uno de ellos corre una instancia diferente del servidor vulnerable.
+Para esta tarea, usaremos el servidor cuya IP es \texttt{10.9.0.5}, y corre la versión de 32-bits del programa vulnerable.
+Primero procederemos a enviar un mensaje inocuo (a modo de prueba) hacia el servidor.
+Una vez hecho esto podremos observar en el contenedor target los siguientes mensajes (esto puede variar levemente)
+
+\begin{lstlisting}
+$ echo hello | nc 10.9.0.5 9090
+Press Ctrl+C
+
+// Printouts on the container's console
+server-10.9.0.5 | Got a connection from 10.9.0.1
+server-10.9.0.5 | Starting format
+server-10.9.0.5 | Input buffer (address):        0xffffd2d0
+server-10.9.0.5 | The secret message's address:  0x080b4008
+server-10.9.0.5 | The target variable's address: 0x080e5068
+server-10.9.0.5 | Input size: 6
+server-10.9.0.5 | Frame Pointer inside myprintf() = 0xffffd1f8
+server-10.9.0.5 | The target variable's value (before): 0x11223344
+server-10.9.0.5 | hello
+server-10.9.0.5 | (^_^)(^_^) Returned properly (^_^)(^_^)
+server-10.9.0.5 | The target variable's value (after):  0x11223344
+\end{lstlisting}
+ 
+El servidor podrá aceptar un flujo de datos superior a \texttt{1500} bytes. Su tarea es construir diferentes payloads para explotar la vulnerabilidad de format string en el servidor. Si ud. salva este payload dentro de un archivo, puede enviarlo al servidor de la siguiente manera.
+
+\begin{lstlisting}
+$ cat <file> | nc 10.9.0.5 9090
+Press Ctrl+C  if it does not exit.
+\end{lstlisting}
+
+\paragraph{Tarea.} Su tarea es enviar un input al servidor, de manera que cuando el programa trate de imprimir el input que llega del usuario remoto usando la función \texttt{myprintf()}, este programa rompa. Puede advertir que el programa  \texttt{format} ha roto o crasheado observando el output generado en el contenedor. Si la función \texttt{myprintf()} retorna exitósamente mostrará \texttt{"Returned properly"}. 
+En cambio si este mensaje no es impreso, es muy probable que el programa \texttt{format} haya roto.
+Aunque pase esto, el programa servidor no romperá por completo; el programa \texttt{format} corre dentro de un proceso hijo que es creado por el proceso padre que corre el programa servidor.
+
+
+Dado que la mayoría de las cadenas de formatos construidas en este laboratorio pueden ser algo grandes, es mejor usar un programa para generarlas. Dentro del directorio  \texttt{attack-code}, hemos creado un código de ejemplo llamado  \texttt{build\_string.py}. Para aquellas personas que no están familiarizadas con Python este código se encarga de mostrar como poner varios tipos de datos dentro de una cadena.
+
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Tarea 2: Mostrando la Memoria del Programa Servidor}
+
+El objetivo de esta tarea es hacer que el servidor imprima datos de su memoria (continuaremos usando el contenedor \texttt{10.9.0.5}).
+Los datos serán impresos del lado del servidor, por lo que el atacante no podrá verlos. Si bien este ataque no es tan significante, la técnica usada para ejecutar este ataque será esencial para los ataques subsiguientes.
+
+
+\begin{itemize} 
+\item \textbf{Tarea 2.A: Datos del Stack.}
+El objetivo será mostrar los datos en el stack.
+Cuantos especificadores de formato \texttt{\%x} necesita para que el programa servidor imprima los primeros cuatro bytes de su input? Puede poner cualquier número de 4 bytes, por lo que al ser impreso en pantalla, puede saberlo.
+Este número será importante para las tareas subsiguientes, asegúrese de hacerlo bien.
+
+\item \textbf{Tarea 2.B: Datos del Heap} 
+Existe un mensaje secreto (una cadena) guardada en el area del heap y puede encontrar su dirección de memoria del mensaje impreso en el contenedor.
+Su tarea es imprimir este mensaje secreto.
+Para lograr este objetivo, necesita ubicar la dirección de memoria (de forma binaria) del mensaje secreto en la cadena de formato.
+
+La mayoría de las computadores son little endian, por lo que al guardar una dirección como \texttt{0xAABBCCDD} (cuatro bytes en una máquina de 32-bits) en memoria, el byte menos significativo \texttt{0xDD} es guardado en las direcciones de memoria más bajas, mientras que el byte más significativo \texttt{0xAA} es guardado en las direcciones de memoria más altas. 
+Al guardar la dirección de un buffer, necesitamos hacerlo usando este orden: \texttt{0xDD}, \texttt{0xCC}, \texttt{0xBB}, y por último \texttt{0xAA}.
+Puede hacerlo de la siguiente forma usando Python:
+
+\begin{lstlisting}
+number  = 0xAABBCCDD
+content[0:4]  =  (number).to_bytes(4,byteorder='little')
+\end{lstlisting}
+     
+\end{itemize} 
+
+
+
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Tarea 3: Modificando la Memoria del Programa Servidor}
+
+El objetivo de esta tarea es modificar el valor de la variable \texttt{target} que está declarada en nuestro programa servidor (continuaremos usando \texttt{10.9.0.5}).
+El valor original de \texttt{target} es \texttt{0x11223344}. 
+Asumiendo que esta variable contiene un valor de importancia y que puede afectar el flujo de control del programa. Si un atacante remoto puede cambiar el valor de esta variable también puede cambiar el comportamiento del programa. Tenemos tres sub-tareas.
+
+\begin{itemize} 
+\item \textbf{Tarea 3.A: Cambiar el valor a cualquier otro valor.}
+En esta sub-tarea, necesitamos cambiar el contenido de la variable \texttt{target} a otro valor cualquiera. Su tarea será considerada como exitosa si puede cambiarlo a un valor cualquiera, sin importar cual sea ese valor. La dirección de la variable \texttt{target} puede ser vista en los mensajes impresos en el contenedor del servidor.
+
+
+\item \textbf{Tarea 3.B: Cambiar el valor a \texttt{0x5000}.}  
+En esta sub-tarea, necesitamos cambiar el contenido de la variable  \texttt{target} con un valor específico \texttt{0x5000}. Su tarea será considerada como exitosa solamente si el valor de la variable resulta siendo \texttt{0x5000}.
+
+
+\item \textbf{Tarea 3.C: Cambiar el valor a \texttt{0xAABBCCDD}.}  
+Esta sub-tarea es similar a las anteriores, con la exepción que el valor para la variable target es un número más grande. En un ataque de format string, este valor es el número total de caracteres que son mostrados por la función \texttt{printf()}; imprimir este número de caracteres puede llevar horas. Necesita usar una estrategia más óptima en velocidad.
+La idea básica es usar  \texttt{\%hn} o \texttt{\%hhn}, en lugar de \texttt{\%n}, lo que nos permite modificar un espacio de direcciones de dos bytes (o un sólo byte) en vez de cuatro bytes. Imprimir $2^{16}$ caracteres no lleva mucho tiempo.
+Para más detalles sobre esto puede consultar el libro de SEED.
+\end{itemize} 
+
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Tarea 4: Inyectar Código Malicioso dentro del Programa Servidor}
+
+Estamos listos para ir por las joyas de la corona del ataque, la inyección de código.
+Vamos a inyectar un fragmento de código malicioso en formato binario, dentro de la memoria del programa servidor y usar la vulnerabilidad de format string para modificar la dirección de retorno de una función, y la haremos retornar a nuestro código malicioso.
+
+La técnica usada para esta tarea es similar a la usada en las tareas anteriores:
+Ambas modifican en memoria un número de 4 bytes. En la tarea anterior se modificó la variable \texttt{target}, mientras que en esta modificaremos la dirección de retorno de una función. Los estudiantes necesitarán descubrir la dirección de memoria de la dirección de retorno de la función basado en la información impresa en pantalla dentro del contenedor del servidor.
+
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Entendiendo el Stack Layout} 
+
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{\formatFigs/StackLayout.pdf}
+\end{center}
+\caption{El stack layout cuando se invoca \texttt{printf()}
+dentro de la función \texttt{myprintf()}}
+\label{format:fig:stacklayout}
+\end{figure}
+
+Para poder lograr esta tarea, es esencial entender el stack layout cuando se invoca a la función \texttt{printf()} dentro de la función \texttt{myprintf()}.
+La Figura \ref{format:fig:stacklayout} describe el stack layout.
+Intencionalmente se insertó un dummy stack frame entre las funciones \texttt{main} y \texttt{myprintf} pero no se muestra en la figura. Antes de empezar a trabajar en esta tarea, los estudiantes necesitan responder las siguientes preguntas (por favor incluya las respuestas en el informe de laboratorio):
+
+
+\begin{itemize}[noitemsep]
+\item \textbf{Pregunta 1:} ¿Qué son las direcciones de memorias marcadas en   \ding{203} y \ding{204}?
+
+\item \textbf{Pregunta 2:} ¿Cuantos especificadores de formato necesitamos para mover el puntero de argumentos de la cadena de formatos a \ding{204}? Recuerde, el puntero de argumentos empieza en la ubicación antes de \ding{202}. 
+\end{itemize} 
+
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Shellcode} 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/guidelines/shellcode.tex}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Las versiones de 32-bits y de 64-bits del shellcode son incluídas en el archivo \texttt{exploit.py} dentro del directorio \texttt{attack-code}. 
+Puede usarlos para construir su ataque en la explotación de la vulnerabilidad de format string.
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Su Tarea} 
+
+Por favor genere su input por medio de un shellcode, envie su input al programa servidor y demuestre que el servidor puede correr su shellcode.
+En su informe de laboratorio, necesita explicar como construyó su cadena de foormato. Por favor marque en la Figura \ref{format:fig:stacklayout} donde se guarda su código malicioso (incluya una dirección de memoria concreta).
+
+
+\paragraph{Obteniendo una Shell Reversa.}
+NDado que estamos haciendo un ataque a un servidor remoto desde nuestra máquina local, no nos servirá de mucho correr \texttt{/bin/bash} en el servidor vulnerable, ya que será ejecutado de forma local y no podremos tener el control sobre esta shell desde nuestro lado. Una de las técnicas más comúnes para lograr control sobre un servidor a través shell de forma remota es la Shell Reversa. En la Sección \ref{sec:guildelines} se explica como correr una shell reversa.
+Ud. deberá de modificar la cadena de comandos en el shellcode, para poder obtener una shell reversa en el servidor vulnerable.
+Por favor incluya las explicaciones pertinentes junto con los screenshots de este procedimiento en el informe del laboratorio.
+
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Tarea 5: Atacando el Programa de 64-bits}
+
+En las tareas anteriores, nuestro servidor vulnerable corre un programa de 32-bits. En esta tarea, pasaremos nuestro programa \texttt{format} de 64-bits ubicado en el contenedor servidor cuya IP es \texttt{10.9.0.6}.
+Enviaremos un mensaje de hello hacia este servidor.
+Podremos observa los siguientes mensajes que son impresos dentro del contenedor que corre el servidor.
+
+
+\begin{lstlisting}
+$ echo hello | nc 10.9.0.6 9090
+Press Ctrl+C
+
+// Printouts on the container's console
+server-10.9.0.6 | Got a connection from 10.9.0.1
+server-10.9.0.6 | Starting format
+server-10.9.0.6 | Input buffer (address):        0x00007fffffffe200
+server-10.9.0.6 | The secret message's address:  0x0000555555556008
+server-10.9.0.6 | The target variable's address: 0x0000555555558010
+server-10.9.0.6 | Input size: 6
+server-10.9.0.6 | Frame Pointer (inside myprintf):      0x00007fffffffe140
+server-10.9.0.6 | The target variable's value (before): 0x1122334455667788
+server-10.9.0.6 | hello
+server-10.9.0.6 | (^_^)(^_^)  Returned from printf()  (^_^)(^_^)
+server-10.9.0.6 | The target variable's value (after):  0x1122334455667788
+\end{lstlisting}
+ 
+Puede observar que los valores del frame pointer y la dirección del buffer son de 8 bytes de longitud (en vez de 4 bytes como lo son en un programa de 32-bits).
+Su tarea es generar un payload para explotar la vulnerabilidad de format string en el servidor.
+Su objetivo final es obtener una shell de root en el servidor vulnerable. Necesita usar la versión de 64-bits del shellcode.
+
+
+\paragraph{Desafíos en las direcciones de 64-bits.}
+Un desafío que existe en la arquitectura x64 son los ceros en las direcciones de memoria. Aunque la arquitectura x64 soporta un espacio de direcciones de 64-bits, sólo se permite el acceso a las direcciones de  \texttt{0x00} hasta \texttt{0x00007FFFFFFFFFFF}. Esto significa que para cada dirección de 8 bytes, los dos bytes más significativos serán ceros.
+Esto ocasiona problemas.
+
+En el ataque, necesitamos ubicar la dirección de memoria dentro de la cadena de formato. Para un programa de 32-bits, podemos poner esa dirección en cualquier lado porque no esta dirección no contiene ceros. Para los programas de 64-bits esto ya no es posible. Si ud. pone una dirección en el medio de una cadena de formato al momento que \texttt{printf()} parsea la cadena, se detendrá al detectar un cero. Básicamente todo lo que venga después de ese cero no será considerado parte de la cadena de formato.
+
+Este problema ocasionado por los ceros difiere del problema de los ceros en un ataque de buffer ooverflow, en el cual los ceros detendrán la copia en memoria realizada por la función \texttt{strpcy()}.
+Aquí no estamos copiando en la memoria del programa, por lo que podemos tener ceros en nuestro input, lo crítico es donde son puestos.
+Existen muchas formas de resolver este problema y se deja esta resolución como tarea para los estudiantes. En el informe del laboratorio, los estudiantes deben explicar como han resuelto este problema.
+
+
+\paragraph{Una técnica útil: mover libremente el puntero de los argumentos.}
+En una cadena de formato, podemos usar \texttt{\%x} para mover el puntero de argumentos \texttt{va\_list} al siguiente argumento opcional.
+También podemos mover directamente el puntero a la posición \texttt{k}-th de los argumentos opcionales esto se logra usando el parametro del formato de cadena (de la siguiente forma \texttt{k\$}).
+El código que se muestra a continuación usa \texttt{"\%3\$.20x"} para mostrar el valor del tercer argumento opcional y después usa \texttt{"\%6\$n"} para escribir un valor en el sexto argumento opcional (el valor de la variable \texttt{var} tendrá el valor de \texttt{20}). Finalmente usando \texttt{\%2\$.10x}, movera el puntero al segundo argumento opcional y lo mostrará en pantalla. Puede observar que usando esta técnica, podemos mover libremente el puntero de un lado a otro.
+Esta técnica puede ser útil para simplificar la construcción de la cadena de formato para esta tarea.
+
+\begin{lstlisting}
+#include <stdio.h>
+int main()
+{
+    int var = 1000;
+    printf("%3$.20x%6$n%2$.10x\n", 1, 2, 3, 4, 5, &var);
+    printf("The value in var: %d\n",var);
+    return 0;
+}
+----- Output ------
+seed@ubuntu:$ a.out
+000000000000000000030000000002
+The value in var: 20
+\end{lstlisting}
+
+
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Tarea 6: Arreglando el Problema}
+
+Recuerda el mensaje de warning generado por el compilador \texttt{gcc}? Por favor explique que significa. Por favor arregle la vulnerabilidad en el programa servidor y compilelo nuevamente.
+El compilador sigue mostrando el mensaje de warning? Sus ataques aún funcionan? Solamente necesita ejecutar uno de sus ataques para comprobar si su programa es aún vulnerable.
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Guía de Shell Reversa}
+\label{sec:guildelines}
+
+\input{\commonfolder/guidelines/reverse_shell.tex}
+
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Informe de Laboratorio}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/submission}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section*{Agradecimientos}
+
+\input{\commonfolder/acknowledgments}
+
+
+\end{document}

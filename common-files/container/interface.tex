@@ -1,0 +1,23 @@
+Cuando usamos el archivo de Compose para generar los contenedores para el laboratorio, se crea una nueva red que conecta a la Máquina Virtual y a los contenedores. El prefijo de esta red es \texttt{10.9.0.0/24} y se configura dentro del archivo \texttt{docker-compose.yml}. La dirección IP que se asigna a nuestra Máquina Virtual es \texttt{10.9.0.1}. Vamos a necesitar encontrar el nombre de cada una de las interfaces de red en nuestra Máquina Virtual ya que las utilizaremos en nuestros programas. El nombre de la interfaz es la resultante de la concatenación de \texttt{br-} y el ID de red creado por Docker.
+Cuando usamos \texttt{ifconfig} para listar las interfaces de red, veremos algunas de ellas. Observe la dirección IP \texttt{10.9.0.1}.
+
+
+\begin{lstlisting}
+$ ifconfig
+(*@\textbf{br-c93733e9f913}@*): flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet (*@\textbf{10.9.0.1}@*)  netmask 255.255.255.0  broadcast 10.9.0.255
+        ...
+\end{lstlisting}
+
+Otra forma de obtener el nombre de la interfaz es usar el comando \texttt{"docker network"} y encontrar el id de red por nuestra cuenta (el nombre de la red es \texttt{seed-net})
+
+\begin{lstlisting}
+$ docker network ls
+NETWORK ID          NAME                DRIVER              SCOPE
+a82477ae4e6b        bridge              bridge              local
+e99b370eb525        host                host                local
+df62c6635eae        none                null                local
+(*@\textbf{c93733e9f913}@*)        seed-net            bridge              local
+\end{lstlisting}
+
+

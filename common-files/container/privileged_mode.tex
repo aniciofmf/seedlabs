@@ -1,0 +1,7 @@
+Para poder modificar parámetros del kernel en tiempo de ejecución (usando  \texttt{sysctl}), tal como IP forwarding, el contenedor debe de ser privilegiado.
+Esto se consigue incluyendo la siguiente entrada dentro del archivo Docker compose del contenedor.
+
+\begin{lstlisting}
+privileged: true
+\end{lstlisting}
+

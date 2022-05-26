@@ -1,0 +1,22 @@
+
+Poder hacer sniffing de paquetes es algo muy importante para este laboratorio, dado que si las cosas no resultan como se esperan, poder observar el trayecto de estos paquetes nos permitirá identificar determinados problemas.
+Existen varias formas para hacer sniffing de paquetes:
+
+\begin{itemize}
+\item Corriendo \texttt{tcpdump} en los contenedores.
+Hemos instalado la utilidad \texttt{tcpdump} en cada uno de los contenedores. Para poder sniffear los paquetes que viajan en una interfaz determinada, necesitamos como primer paso determinar cual es esa interfaz y hacer lo siguiente (assumiendo que el nombre de la interfaz es \texttt{eth0}):
+
+\begin{lstlisting}
+# tcpdump -i eth0 -n
+\end{lstlisting}
+
+Cabe aclarar que como estamos dentro de un contenedor, Docker implementa un mecanismo de isolación que sólo permite monitorear los paquetes que entran y salen del contenedor en donde se está ejecutando \texttt{tcpdump} por lo que no podremos hacer sniffing de paquetes entre contenedores.
+Sin embargo, si un contenedor usa el modo \texttt{host} en su configuración de red, puede sniffear los paquetes de otros contenedores.
+
+\item Corriendo \texttt{tcpdump} en la Máquina Virtual. Si corremos \texttt{tcpdump} dentro de la Máquina Virtual, no estamos sujetos a las mismas restricciones que impone Docker sobre sus contenedores, podemos hacer sniffing sobre todos los paquetes que entran y salen en los contenedores que se encuentran corriendo. La interfaz de red de la Máquina Virtual es diferente que la interfaz de los contenedores.
+Generalmente en los contenedores cada interfaz empieza con \texttt{eth}; en la Máquina Virtual, la interfaz de red creada por Docker empieza con \texttt{br-}, seguido por el ID de red.
+Puede usar el comando \texttt{ip address} para obtener el nombre de interfaz de la Máquina Virtual y de los contenedores.
+
+\item También podemos usar Wireshark en la Máquina Virtual para sniffear paquetes. Al igual que \texttt{tcpdump}, necesitamos seleccionar en que interfaz Wireshark debería de estar escuchando para hacer el sniffing.
+\end{itemize}
+
